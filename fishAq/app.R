@@ -29,7 +29,7 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                       sidebarLayout(
                         sidebarPanel("Select Patch",
                                      checkboxGroupInput("check_patch",
-                                                        label = "Hurricane Type [dummy dataset for now]",
+                                                        label = "Hurricane Type [dummy dataset]",
                                                         choices = list(
                                                           "Patch 1" = "hurricane",
                                                           "Patch 2" = "tropical storm",
