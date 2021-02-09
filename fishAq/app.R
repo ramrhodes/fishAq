@@ -1,5 +1,5 @@
 # this is my app
-# Jess has not sent us our data yet (should be ready next week), so we will use storms for this assignment
+# NOTE: Jess has not sent us our data yet (should be ready next week), so we will use storms for this assignment
 
 library(tidyverse)
 library(shiny)
@@ -15,19 +15,29 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                      sliderInput(inputId = "year_range",
                                                  label = "Year",
                                                  value = c(min(storms$year, na.rm = TRUE),
-                                                           max(storms$yea, na.rm = TRUE)),
+                                                           max(storms$year, na.rm = TRUE)),
                                                  min = min(storms$year, na.rm = TRUE),
                                                  max = max(storms$year, na.rm = TRUE),
                                                  step = 1L,
                                                  sep = ""
-
-
                                      )),
                         mainPanel("Output",
                                   plotOutput("biomass_plot"))
                       )
                       ),
-             tabPanel("Location"),
+             tabPanel("Biomass per Patch",
+                      sidebarLayout(
+                        sidebarPanel("Select Patch",
+                                     checkboxGroupInput("check_patch",
+                                                        label = "Hurricane Type [dummy dataset]",
+                                                        choices = list(
+                                                          "Patch 1" = "hurricane",
+                                                          "Patch 2" = "tropical storm",
+                                                          "Patch 3" = "tropical depression"
+                                                        ))),
+                        mainPanel("Output",
+                                     plotOutput("patches")
+                                     ))),
              tabPanel("Farm Size"),
              tabPanel("Zones of Influence")
 
@@ -50,6 +60,16 @@ server <- function(input, output) {
       geom_jitter(aes(color = category))
   )
 
+  patch_reactive <- reactive({
+
+    storms %>%
+      filter(status %in% input$check_patch)
+  })
+
+  output$patches <- renderPlot(
+    ggplot(data = patch_reactive(), aes(x = year, y = category)) +
+      geom_jitter(aes(color = status))
+  )
 }
 
 # Run the application
