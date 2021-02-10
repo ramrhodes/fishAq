@@ -38,7 +38,7 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                         mainPanel("Output",
                                      plotOutput("patches")
                                      ))),
-             tabPanel("Farm Size"),
+             tabPanel("Farm Size",
                       sidebarLayout(
                         sidebarPanel("Select Farm size",
                                      checkboxGroupInput("check_farm_size",
@@ -50,9 +50,9 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                                         ))),
                         mainPanel("Output",
                                   plotOutput("farm_size")
-                      )),
+                      ))),
 
-             tabPanel("Zones of Influence"),
+             tabPanel("Zones of Influence",
                       sidebarLayout(
                         sidebarPanel("Select fish size range",
                                      sliderInput("select_size",
@@ -66,10 +66,11 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                                  ticks = TRUE
                                                   )),
                         mainPanel("Output",
-                                  plotOutput("fish_size")))
-                      )
+                                  plotOutput("fish_size")
+                                  )
+                        )))
+)
 
-             )
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
