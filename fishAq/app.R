@@ -39,11 +39,37 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                      plotOutput("patches")
                                      ))),
              tabPanel("Farm Size"),
-             tabPanel("Zones of Influence")
+                      sidebarLayout(
+                        sidebarPanel("Select Farm size",
+                                     checkboxGroupInput("check_farm_size",
+                                                        label = "Hurricane Category [dummy dataset]",
+                                                        choices = list(
+                                                          "Small" = "1",
+                                                          "Medium" = "3",
+                                                          "Large" = "5"
+                                                        ))),
+                        mainPanel("Output",
+                                  plotOutput("farm_size")
+                      )),
+
+             tabPanel("Zones of Influence"),
+                      sidebarLayout(
+                        sidebarPanel("Select fish size range",
+                                     sliderInput("select_size",
+                                                 inputId = "fish_size_range",
+                                                 label = "Mass",
+                                                 value = c(min(storms$hu_diameter, na.rm = TRUE),
+                                                           max(storms$hu_diameter, na.rm = TRUE)),
+                                                 min = min(storms$hu_diameter, na.rm = TRUE),
+                                                 max = max(storms$hu_diameter, na.rm = TRUE),
+                                                 step = 10,
+                                                 ticks = TRUE
+                                                  )),
+                        mainPanel("Output",
+                                  plotOutput("fish_size")))
+                      )
 
              )
-
-)
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
@@ -69,6 +95,29 @@ server <- function(input, output) {
   output$patches <- renderPlot(
     ggplot(data = patch_reactive(), aes(x = year, y = category)) +
       geom_jitter(aes(color = status))
+  )
+
+  farm_reactive <-reactive({
+
+    storms %>%
+      filter(category %in% input$check_farm_size)
+  })
+
+  output$farm_size <- renderPlot(
+    ggplot(data = farm_reactive(), aes(x= category, y=ts_diameter))+
+      geom_col(aes(color=status))
+  )
+
+  fish_reactive <- reactive({
+
+    storms %>%
+      filter(hu_diameter %in% input$fish_size_range)
+
+  })
+
+  output$fish_size <- renderPlot(
+    ggplot(data = fish_reactive(), aes(x = category, y = hu_diameter)) +
+      geom_jitter(aes(color = name))
   )
 }
 
