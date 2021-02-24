@@ -4,40 +4,12 @@
 library(tidyverse)
 library(shiny)
 library(shinythemes)
+library(googledrive)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(theme = shinytheme("cosmo"),
 
   navbarPage("Bioeconomic Model: Fish & Protected Space",
-             tabPanel("Fish Biomass",
-                      sidebarLayout(
-                        sidebarPanel("Select Date Range",
-                                     sliderInput(inputId = "year_range",
-                                                 label = "Year",
-                                                 value = c(min(storms$year, na.rm = TRUE),
-                                                           max(storms$year, na.rm = TRUE)),
-                                                 min = min(storms$year, na.rm = TRUE),
-                                                 max = max(storms$year, na.rm = TRUE),
-                                                 step = 1L,
-                                                 sep = ""
-                                     )),
-                        mainPanel("Output",
-                                  plotOutput("biomass_plot"))
-                      )
-                      ),
-             tabPanel("Biomass per Patch",
-                      sidebarLayout(
-                        sidebarPanel("Select Patch",
-                                     checkboxGroupInput("check_patch",
-                                                        label = "Hurricane Type [dummy dataset]",
-                                                        choices = list(
-                                                          "Patch 1" = "hurricane",
-                                                          "Patch 2" = "tropical storm",
-                                                          "Patch 3" = "tropical depression"
-                                                        ))),
-                        mainPanel("Output",
-                                     plotOutput("patches")
-                                     ))),
              tabPanel("Farm Size",
                       sidebarLayout(
                         sidebarPanel("Select Farm size",
@@ -50,7 +22,7 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                                         ))),
                         mainPanel("Output",
                                   plotOutput("farm_size")
-                      ))),
+                                  ))),
 
              tabPanel("Zones of Influence",
                       sidebarLayout(
@@ -67,8 +39,38 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                                   )),
                         mainPanel("Output",
                                   plotOutput("fish_size")
-                                  )
-                        )))
+                                  ))),
+
+            tabPanel("Fish Biomass",
+                     sidebarLayout(
+                       sidebarPanel("Select Date Range",
+                                    sliderInput(inputId = "year_range",
+                                                label = "Year",
+                                                value = c(min(storms$year, na.rm = TRUE),
+                                                          max(storms$year, na.rm = TRUE)),
+                                                min = min(storms$year, na.rm = TRUE),
+                                                max = max(storms$year, na.rm = TRUE),
+                                                step = 1L,
+                                                sep = ""
+                                    )),
+                       mainPanel("Output",
+                                 plotOutput("biomass_plot")
+                                 ))),
+
+            tabPanel("Biomass per Patch",
+                     sidebarLayout(
+                       sidebarPanel("Select Patch",
+                                    checkboxGroupInput("check_patch",
+                                                       label = "Hurricane Type [dummy dataset]",
+                                                       choices = list(
+                                                         "Patch 1" = "hurricane",
+                                                         "Patch 2" = "tropical storm",
+                                                         "Patch 3" = "tropical depression"
+                                                       ))),
+                       mainPanel("Output",
+                                 plotOutput("patches")
+                       ))))
+
 )
 
 
