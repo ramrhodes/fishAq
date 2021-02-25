@@ -26,7 +26,7 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                         img(src = "shiny_app_diagram.png"),
                         h3("Summary"),
                         p("Total biomass of fish increases as the percent of management area increases. The increase in biomass in greater is constant effort management strategies.
-                         The number of fish caught by fisheries is higher with constant effort management strategies and increases as the percent of protected/managed area increases.
+                          The number of fish caught by fisheries is higher with constant effort management strategies and increases as the percent of protected/managed area increases.
                          "),
                         h3("Citation"),
                         p("Model created by Jessica Couture, University of California, Santa Barbara")
@@ -41,7 +41,7 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                                         choices = unique(
                                                           app_data$mgmt_area
                                                         ))),
-                        mainPanel("Projected Fish Biomass in % Protected Area",
+                        mainPanel("Projected Fish Biomass in Management Area",
                                   plotOutput("biomass_mgmt")
                                   ))),
 
