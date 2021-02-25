@@ -1,10 +1,14 @@
 # this is my app
-# NOTE: Jess has not sent us our data yet (should be ready next week), so we will use storms for this assignment
 
 library(tidyverse)
 library(shiny)
 library(shinythemes)
-library(googledrive)
+library(janitor)
+
+app_data <- read_csv("appDatCEOA.csv") %>%
+  mutate(farmsize = case_when(frmSz == 2 ~ "small",
+                              frmSz == 5 ~ "medium",
+                              frmSz == 10 ~ "large"))
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(theme = shinytheme("cosmo"),
@@ -41,15 +45,15 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                   plotOutput("fish_size")
                                   ))),
 
-            tabPanel("Fish Biomass",
+            tabPanel("Fish Biomass Over Time",
                      sidebarLayout(
                        sidebarPanel("Select Date Range",
                                     sliderInput(inputId = "year_range",
                                                 label = "Year",
-                                                value = c(min(storms$year, na.rm = TRUE),
-                                                          max(storms$year, na.rm = TRUE)),
-                                                min = min(storms$year, na.rm = TRUE),
-                                                max = max(storms$year, na.rm = TRUE),
+                                                value = c(min(app_data$year, na.rm = TRUE),
+                                                          max(app_data$year, na.rm = TRUE)),
+                                                min = min(app_data$year, na.rm = TRUE),
+                                                max = max(app_data$year, na.rm = TRUE),
                                                 step = 1L,
                                                 sep = ""
                                     )),
@@ -57,18 +61,19 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                  plotOutput("biomass_plot")
                                  ))),
 
-            tabPanel("Biomass per Patch",
+            tabPanel("Number of Farms",
                      sidebarLayout(
-                       sidebarPanel("Select Patch",
-                                    checkboxGroupInput("check_patch",
-                                                       label = "Hurricane Type [dummy dataset]",
+                       sidebarPanel("Select Number of Farms",
+                                    checkboxGroupInput(inputId = "num_farms",
+                                                       label = "Select Farm Size",
                                                        choices = list(
-                                                         "Patch 1" = "hurricane",
-                                                         "Patch 2" = "tropical storm",
-                                                         "Patch 3" = "tropical depression"
-                                                       ))),
+                                                         "Small" = 2,
+                                                         "Medium" = 5,
+                                                         "Large" = 10),
+                                                       selected = 2
+                                                       )),
                        mainPanel("Output",
-                                 plotOutput("patches")
+                                 plotOutput("numfarms")
                        ))))
 
 )
@@ -76,29 +81,6 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-
-  storms_reactive <- reactive({
-
-    storms %>%
-      filter(year %in% input$year_range)
-
-  })
-
-  output$biomass_plot <- renderPlot(
-    ggplot(data = storms_reactive(), aes(x = year, y = category)) +
-      geom_jitter(aes(color = category))
-  )
-
-  patch_reactive <- reactive({
-
-    storms %>%
-      filter(status %in% input$check_patch)
-  })
-
-  output$patches <- renderPlot(
-    ggplot(data = patch_reactive(), aes(x = year, y = category)) +
-      geom_jitter(aes(color = status))
-  )
 
   farm_reactive <-reactive({
 
@@ -122,6 +104,30 @@ server <- function(input, output) {
     ggplot(data = fish_reactive(), aes(x = category, y = hu_diameter)) +
       geom_jitter(aes(color = name))
   )
+
+  year_reactive <- reactive({
+
+    app_data %>%
+      filter(year %in% input$year_range)
+
+  })
+
+  output$biomass_plot <- renderPlot(
+    ggplot(data = year_reactive(), aes(x = year, y = totBM)) +
+      geom_point(aes(color = mgmt, size = frmSz))
+  )
+
+  numfarms_reactive <- reactive({
+
+    app_data %>%
+      filter(frmSz %in% input$num_farms)
+  })
+
+  output$numfarms <- renderPlot(
+    ggplot(data = numfarms_reactive(), aes(x = year, y = abund)) +
+      geom_jitter(aes(color = farmsize))
+  )
+
 }
 
 # Run the application
