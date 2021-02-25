@@ -4,9 +4,8 @@ library(tidyverse)
 library(shiny)
 library(shinythemes)
 library(janitor)
-library(here)
 
-app_data <- read.csv(here("data","appDatCEOA.csv")) %>%
+app_data <- read_csv("appDatCEOA.csv") %>%
   clean_names() %>%
   mutate(frmsz_class = case_when(frm_sz == 2 ~ "small",
                               frm_sz == 5 ~ "medium",
@@ -30,38 +29,35 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                       )
                       ),
 
-             tabPanel("Biomass change with Management Area",
+             tabPanel("Farm Size",
                       sidebarLayout(
-                        sidebarPanel("Select Managment Area",
-                                     checkboxGroupInput("check_mgmt_size",
-                                                        label = "Management Area",
+                        sidebarPanel("Select Farm size",
+                                     checkboxGroupInput("check_farm_size",
+                                                        label = "Hurricane Category [dummy dataset]",
                                                         choices = list(
-                                                          "10%" = ".1",
-                                                          "20%" = ".2",
-                                                          "30%" = ".3",
-                                                          "40%" = ".4",
-                                                          "50%" = ".5",
-                                                          "60%" = ".6"
+                                                          "Small" = "1",
+                                                          "Medium" = "3",
+                                                          "Large" = "5"
                                                         ))),
                         mainPanel("Output",
-                                  plotOutput("biomass_mgmt")
+                                  plotOutput("farm_size")
                                   ))),
 
-             tabPanel("Fishery Catch and Managment Area",
+             tabPanel("Zones of Influence",
                       sidebarLayout(
-                        sidebarPanel("Select Managment Area",
-                                    radioButtons("select_size",
-                                                inputId = "catch_mgmt",
-                                                label = "Managment Area",
-                                                choices =list("10%" = ".1",
-                                                   "20%" = ".2",
-                                                   "30%" = ".3",
-                                                   "40%" = ".4",
-                                                   "50%" = ".5",
-                                                   "60%" = ".6"
-                                                    ))),
+                        sidebarPanel("Select fish size range",
+                                     sliderInput("select_size",
+                                                 inputId = "fish_size_range",
+                                                 label = "Mass",
+                                                 value = c(min(storms$hu_diameter, na.rm = TRUE),
+                                                           max(storms$hu_diameter, na.rm = TRUE)),
+                                                 min = min(storms$hu_diameter, na.rm = TRUE),
+                                                 max = max(storms$hu_diameter, na.rm = TRUE),
+                                                 step = 10,
+                                                 ticks = TRUE
+                                                  )),
                         mainPanel("Output",
-                                  plotOutput("catch_mgmt")
+                                  plotOutput("fish_size")
                                   ))),
 
             tabPanel("Fish Biomass Over Time",
@@ -101,27 +97,27 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
-  biomass_mgmt_reactive <-reactive({
+  farm_reactive <-reactive({
 
-    app_data %>%
-      filter(mgmt_area %in% input$check_mgmt_size)
+    storms %>%
+      filter(category %in% input$check_farm_size)
   })
 
-  output$biomass_mgmt <- renderPlot(
-    ggplot(data = biomass_mgmt_reactive(), aes(x= mgmt_area, y=tot_bm))+
-      geom_line(aes(color=mgmt))
+  output$farm_size <- renderPlot(
+    ggplot(data = farm_reactive(), aes(x= category, y=ts_diameter))+
+      geom_col(aes(color=status))
   )
 
-  catch_mgmt_reactive <- reactive({
+  fish_reactive <- reactive({
 
-    app_data %>%
-      filter(mgmt_area %in% input$catch_mgmt)
+    storms %>%
+      filter(hu_diameter %in% input$fish_size_range)
 
   })
 
-  output$catch_mgmt <- renderPlot(
-    ggplot(data = catch_mgmt_reactive(), aes(x = mgmt_area, y = amt_caught)) +
-      geom_jitter(aes(color = mgmt))
+  output$fish_size <- renderPlot(
+    ggplot(data = fish_reactive(), aes(x = category, y = hu_diameter)) +
+      geom_jitter(aes(color = name))
   )
 
   year_reactive <- reactive({
