@@ -25,6 +25,9 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                         p("The model is a 1-D spatially explicit bioeconomic model that simulates fish movement and fishery catches around a protected space. The model is used to simulate the impacts of an MPA or farm on wild populations (abundance, biomass) and fishery catches (yield amount and yield biomass)."),
                         img(src = "shiny_app_diagram.png"),
                         h3("Summary"),
+                        p("Total biomass of fish increases as the percent of management area increases. The increase in biomass in greater is constant effort management strategies.
+                          The number of fish caught by fisheries is higher with constant effort management strategies and increases as the percent of protected/managed area increases.
+                         "),
                         h3("Citation"),
                         p("Model created by Jessica Couture, University of California, Santa Barbara")
                       )
@@ -35,15 +38,10 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                         sidebarPanel("Select Managment Area",
                                      checkboxGroupInput("check_mgmt_size",
                                                         label = "Management Area",
-                                                        choices = list(
-                                                          "10%" = ".1",
-                                                          "20%" = ".2",
-                                                          "30%" = ".3",
-                                                          "40%" = ".4",
-                                                          "50%" = ".5",
-                                                          "60%" = ".6"
+                                                        choices = unique(
+                                                          app_data$mgmt_area
                                                         ))),
-                        mainPanel("Output",
+                        mainPanel("Projected Fish Biomass in Management Area",
                                   plotOutput("biomass_mgmt")
                                   ))),
 
@@ -51,16 +49,12 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                       sidebarLayout(
                         sidebarPanel("Select Managment Area",
                                     radioButtons("select_size",
-                                                inputId = "catch_mgmt",
+                                                inputId = "mgmt_area",
                                                 label = "Managment Area",
-                                                choices =list("10%" = ".1",
-                                                   "20%" = ".2",
-                                                   "30%" = ".3",
-                                                   "40%" = ".4",
-                                                   "50%" = ".5",
-                                                   "60%" = ".6"
+                                                choices =unique(
+                                                  app_data$mgmt
                                                     ))),
-                        mainPanel("Output",
+                        mainPanel("Projected Number of Fish Caught with Different Management Conditions",
                                   plotOutput("catch_mgmt")
                                   ))),
 
@@ -109,19 +103,21 @@ server <- function(input, output) {
 
   output$biomass_mgmt <- renderPlot(
     ggplot(data = biomass_mgmt_reactive(), aes(x= mgmt_area, y=tot_bm))+
-      geom_line(aes(color=mgmt))
+      geom_col(aes(fill= mgmt))+
+      labs(x="Management Area (% protected)", y="Total Biomass of Fish", color="Management Practice")
   )
 
   catch_mgmt_reactive <- reactive({
 
     app_data %>%
-      filter(mgmt_area %in% input$catch_mgmt)
+      filter(mgmt %in% input$mgmt_area)
 
   })
 
   output$catch_mgmt <- renderPlot(
-    ggplot(data = catch_mgmt_reactive(), aes(x = mgmt_area, y = amt_caught)) +
-      geom_jitter(aes(color = mgmt))
+    ggplot(data = catch_mgmt_reactive(), aes(mgmt_area, amt_caught)) +
+      geom_point(aes(color = mgmt))+
+      labs(x="Management Area", y="Number of Fish Caught", color="Managment Practice")
   )
 
   year_reactive <- reactive({
