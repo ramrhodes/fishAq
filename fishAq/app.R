@@ -70,7 +70,7 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                                 step = 1L,
                                                 sep = ""
                                     )),
-                       mainPanel("Output",
+                       mainPanel("Fish Biomass Over Time",
                                  plotOutput("biomass_plot")
                                  ))),
 
@@ -85,7 +85,7 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                                          "Large" = 10),
                                                        selected = 2
                                                        )),
-                       mainPanel("Output",
+                       mainPanel("Abundance of Fish by Number of Farms",
                                  plotOutput("numfarms")
                        ))))
 
