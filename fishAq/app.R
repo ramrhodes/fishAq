@@ -59,7 +59,8 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                         h3("Introduction"),
                         p("This Shiny application uses data from Jessica Couture's research to explore the impacts of Marine Protected Areas (MPA) and farms on wild fish populations and fishery catches. The application provides a platform for the user to observe how variations in size of MPAs and aquaculture farms relate to biomass of fish catches, fish attraction to the farm, and movement of adult fish."),
                         h3("Overview"),
-                        p("The model is a 1-D spatially explicit bioeconomic model that simulates fish movement and fishery catches around a protected space. The model is used to simulate the impacts of an MPA or farm on wild populations (abundance, biomass) and fishery catches (yield amount and yield biomass)."),
+                        p("The model is a 1-D spatially explicit bioeconomic model that simulates fish movement and fishery catches around a protected space. The model is used to simulate the impacts of an MPA or farm on wild populations (abundance, biomass) and fishery catches (yield amount and yield biomass).
+                          Management strategy is either Open Access, where management efforts are not put into place or Constant Effort, where fisheries are limited to number of boats and rules on catches are followed."),
                         img(src = "shiny_app_diagram.png"),
                         h3("Summary"),
                         p("Total biomass of fish increases as the percent of management area increases. The increase in biomass in greater is constant effort management strategies.
@@ -88,7 +89,7 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                         sidebarPanel("Select Managment Area",
                                     radioButtons("select_size",
                                                 inputId = "mgmt_area",
-                                                label = "Managment Area",
+                                                label = "Managment Practice",
                                                 choices =unique(
                                                   app_data$mgmt
                                                     ))),
@@ -134,32 +135,35 @@ server <- function(input, output) {
   biomass_mgmt_reactive <-reactive({
 
     app_data %>%
-      filter(mgmt_area %in% input$check_mgmt_size)
+      filter(mgmt_area %in% input$check_mgmt_size) %>%
+      mutate(tot_mil_bm = tot_bm/1e+06)
   })
 
   output$biomass_mgmt <- renderPlot(
-    ggplot(data = biomass_mgmt_reactive(), aes(x= mgmt_area, y=tot_bm))+
+    ggplot(data = biomass_mgmt_reactive(), aes(x= mgmt_area, y=tot_mil_bm))+
       geom_col(aes(fill= mgmt))+
       labs(x="Management Area (% protected)",
-           y="Total Biomass of Fish",
+           y="Total Biomass of Fish (million kg)",
            fill="Management Practice")
   )
 
   catch_mgmt_reactive <- reactive({
 
     app_data %>%
-      filter(mgmt %in% input$mgmt_area)
+      filter(mgmt %in% input$mgmt_area) %>%
+      mutate(amt_10k_caught= amt_caught/10000)
 
   })
 
   output$catch_mgmt <- renderPlot(
-    ggplot(data = catch_mgmt_reactive(), aes(mgmt_area, amt_caught)) +
+    ggplot(data = catch_mgmt_reactive(), aes(mgmt_area, amt_10k_caught)) +
       geom_point(aes(color = mgmt))+
       scale_y_continuous(
-        breaks = seq(0, 1000000, by=10000),
-        labels = seq(0, 1000000, by=10000))+
+        breaks = seq(0, 13, by=1),
+        labels = seq(0, 13, by=1),
+        limits = c(0,13))+
       labs(x="Management Area",
-           y="Number of Fish Caught",
+           y="Number of Fish Caught (10,000s)",
            color="Managment Practice")
   )
 
