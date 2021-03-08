@@ -6,18 +6,55 @@ library(shinythemes)
 library(janitor)
 library(here)
 
+# Global data for app
+## full data set
 app_data <- read.csv(here("data","appDatCEOA.csv")) %>%
   clean_names() %>%
   mutate(frmsz_class = case_when(frm_sz == 2 ~ "small",
                               frm_sz == 5 ~ "medium",
                               frm_sz == 10 ~ "large")) %>%
-  mutate(num_farms = ((mgmt_area*100)/frm_sz))
+  mutate(num_farms = ((mgmt_area*100)/frm_sz)) %>%
+  mutate(mgmt = case_when(mgmt == "OpenAccess" ~ "Open Access",
+                          mgmt == "ConstantEffort_MSY" ~ "Constant Effort"))
+
+## biomass by farm size
+app_data_biomass <- app_data %>%
+  group_by(year) %>%
+  count(frmsz_class, mgmt, wt = tot_bm) %>%
+  filter(year > 49) %>%
+  mutate(year = year - 50) %>%
+  rename(tot_bm = n)
+
+## abundance by farm size
+app_data_abund <- app_data %>%
+  group_by(year) %>%
+  count(frmsz_class, mgmt, wt = abund) %>%
+  filter(year > 49) %>%
+  mutate(year = year - 50) %>%
+  rename(abund = n)
+
+## amount caught by farm size
+app_data_amt_caught<- app_data %>%
+  group_by(year) %>%
+  count(frmsz_class, mgmt, wt = amt_caught) %>%
+  filter(year > 49) %>%
+  mutate(year = year - 50) %>%
+  rename(amt_caught = n)
+
+## abundance and amount caught df combined
+app_data_comb <- merge(app_data_abund, app_data_amt_caught, by=c("year", "mgmt", "frmsz_class")) %>%
+  pivot_longer(cols = c("amt_caught", "abund"),
+               names_to = "type",
+               values_to = "value")
+
+## abundance
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(theme = shinytheme("cosmo"),
 
   navbarPage("Bioeconomic Model: Fish & Protected Space",
-             tabPanel("Overview",
+             tabPanel("About",
+                      icon = icon("fas fa-book-open"),
                       mainPanel(
                         h3("Introduction"),
                         p("This Shiny application uses data from Jessica Couture's research to explore the impacts of Marine Protected Areas (MPA) and farms on wild fish populations and fishery catches. The application provides a platform for the user to observe how variations in size of MPAs and aquaculture farms relate to biomass of fish catches, fish attraction to the farm, and movement of adult fish."),
@@ -34,6 +71,7 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                       ),
 
              tabPanel("Biomass change with Management Area",
+                      icon = icon("far fa-chart-bar"),
                       sidebarLayout(
                         sidebarPanel("Select Managment Area",
                                      checkboxGroupInput("check_mgmt_size",
@@ -59,34 +97,32 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                   ))),
 
             tabPanel("Fish Biomass Over Time",
+                     icon = icon("fas fa-hourglass-half"),
                      sidebarLayout(
                        sidebarPanel("Select Date Range",
                                     sliderInput(inputId = "year_range",
-                                                label = "Year",
-                                                value = c(min(app_data$year, na.rm = TRUE),
-                                                          max(app_data$year, na.rm = TRUE)),
-                                                min = min(app_data$year, na.rm = TRUE),
-                                                max = max(app_data$year, na.rm = TRUE),
-                                                step = 1L,
-                                                sep = ""
+                                                label = "Time",
+                                                min = 0,
+                                                max = 100,
+                                                value = 100
                                     )),
                        mainPanel("Fish Biomass Over Time",
                                  plotOutput("biomass_plot")
                                  ))),
 
-            tabPanel("Number of Farms",
+            tabPanel("Number of Fish",
+                     icon = icon("fas fa-fish"),
                      sidebarLayout(
                        sidebarPanel("Select Number of Farms",
-                                    checkboxGroupInput(inputId = "num_farms",
-                                                       label = "Select Farm Size",
+                                    selectInput(inputId = "select_type",
+                                                       label = "Select",
                                                        choices = list(
-                                                         "Small" = 2,
-                                                         "Medium" = 5,
-                                                         "Large" = 10),
-                                                       selected = 2
-                                                       )),
-                       mainPanel("Abundance of Fish by Number of Farms",
-                                 plotOutput("numfarms")
+                                                         "Abundance" = "abund",
+                                                         "Amount Caught"= "amt_caught"),
+                                                selected = "abund"
+                                                )),
+                       mainPanel("Abundance of Fish vs Fish Caught",
+                                 plotOutput("type")
                        ))))
 
 )
@@ -122,27 +158,34 @@ server <- function(input, output) {
 
   year_reactive <- reactive({
 
-    app_data %>%
-      filter(year %in% input$year_range)
+    app_data_biomass%>%
+      filter(year < input$year_range)
 
   })
 
   output$biomass_plot <- renderPlot(
     ggplot(data = year_reactive(), aes(x = year, y = tot_bm)) +
-      geom_point(aes(color = mgmt, size = frm_sz))
+      geom_line(aes(color = frmsz_class)) +
+      facet_wrap(~mgmt, scales = "free") +
+      labs(x = "time (years)", y = "total biomass", color = "Farm Size") +
+      scale_color_manual(values=c("#003f5c", "#bc5090", "#ffa600"))+
+      scale_x_continuous(breaks = seq(0, 100, by=25), labels = seq(0, 100, by=25)) +
+      theme_minimal()
   )
 
-  numfarms_reactive <- reactive({
+  type_reactive <- reactive({
 
-    app_data %>%
-      filter(frm_sz %in% input$num_farms)
+    app_data_comb %>%
+      filter(type %in% input$select_type)
   })
 
-  output$numfarms <- renderPlot(
-    ggplot(data = numfarms_reactive(), aes(x = year, y = abund)) +
-      geom_jitter(aes(color = frmsz_class))+
+  output$type <- renderPlot(
+    ggplot(data = type_reactive(), aes(x = year, y = value)) +
+      geom_line(aes(color = frmsz_class))+
       facet_wrap(~mgmt) +
-      labs(color = "Farm Size", x = "Number of Years", y = "Abundance of Fish")+
+      scale_color_manual(values=c("#003f5c", "#bc5090", "#ffa600"))+
+      labs(color = "Farm Size", x = "time (years)", y = "Number of Fish")+
+      scale_x_continuous(breaks = seq(0, 100, by=25), labels = seq(0, 100, by=25)) +
       theme_minimal()
   )
 
