@@ -140,7 +140,9 @@ server <- function(input, output) {
   output$biomass_mgmt <- renderPlot(
     ggplot(data = biomass_mgmt_reactive(), aes(x= mgmt_area, y=tot_bm))+
       geom_col(aes(fill= mgmt))+
-      labs(x="Management Area (% protected)", y="Total Biomass of Fish", color="Management Practice")
+      labs(x="Management Area (% protected)",
+           y="Total Biomass of Fish",
+           fill="Management Practice")
   )
 
   catch_mgmt_reactive <- reactive({
@@ -153,7 +155,12 @@ server <- function(input, output) {
   output$catch_mgmt <- renderPlot(
     ggplot(data = catch_mgmt_reactive(), aes(mgmt_area, amt_caught)) +
       geom_point(aes(color = mgmt))+
-      labs(x="Management Area", y="Number of Fish Caught", color="Managment Practice")
+      scale_y_continuous(
+        breaks = seq(0, 1000000, by=10000),
+        labels = seq(0, 1000000, by=10000))+
+      labs(x="Management Area",
+           y="Number of Fish Caught",
+           color="Managment Practice")
   )
 
   year_reactive <- reactive({
@@ -167,7 +174,7 @@ server <- function(input, output) {
     ggplot(data = year_reactive(), aes(x = year, y = tot_bm)) +
       geom_line(aes(color = frmsz_class)) +
       facet_wrap(~mgmt, scales = "free") +
-      labs(x = "time (years)", y = "total biomass", color = "Farm Size") +
+      labs(x = "Time (years)", y = "Total Biomass", color = "Farm Size") +
       scale_color_manual(values=c("#003f5c", "#bc5090", "#ffa600"))+
       scale_x_continuous(breaks = seq(0, 100, by=25), labels = seq(0, 100, by=25)) +
       theme_minimal()
