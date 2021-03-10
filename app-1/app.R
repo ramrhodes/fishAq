@@ -47,7 +47,7 @@ app_data_comb <- merge(app_data_abund, app_data_amt_caught, by=c("year", "mgmt",
                names_to = "type",
                values_to = "value")
 
-## abundance
+
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(theme = shinytheme("cosmo"),
@@ -61,13 +61,14 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                         h3("Overview"),
                         p("The model is a 1-D spatially explicit bioeconomic model that simulates fish movement and fishery catches around a protected space. The model is used to simulate the impacts of an MPA or farm on wild populations (abundance, biomass) and fishery catches (yield amount and yield biomass).
                           Management strategy is either Open Access, where management efforts are not put into place or Constant Effort, where fisheries are limited to number of boats and rules on catches are followed."),
-                        img(src = "shiny_app_diagram.png"),
-                        h3("Summary"),
+                        img(src = "fish_diagram.png"),
+                        h3("Key Findings"),
                         p("Total biomass of fish increases as the percent of management area increases. The increase in biomass in greater is constant effort management strategies.
                           The number of fish caught by fisheries is higher with constant effort management strategies and increases as the percent of protected/managed area increases.
                          "),
                         h3("Citation"),
-                        p("Model created by Jessica Couture, University of California, Santa Barbara")
+                        p("Model created by PhD candidate Jessica Couture, Bren School of Enviornmental Science and Management, University of California, Santa Barbara"),
+                        p("App designed by Laurel Wee and Rachel Rhodes, Bren School of Enviornmental Science and Management, University of California, Santa Barbara")
                       )
                       ),
 
@@ -79,12 +80,14 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                                         label = "Management Area",
                                                         choices = unique(
                                                           app_data$mgmt_area
-                                                        ))),
+                                                        ),
+                                                        selected = c(0.1,0.2))),
                         mainPanel("Projected Fish Biomass in Management Area",
                                   plotOutput("biomass_mgmt")
                                   ))),
 
              tabPanel("Fishery Catch and Managment Area",
+                      icon = icon("fas fa-water"),
                       sidebarLayout(
                         sidebarPanel("Select Managment Area",
                                     radioButtons("select_size",
@@ -100,9 +103,9 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
             tabPanel("Fish Biomass Over Time",
                      icon = icon("fas fa-hourglass-half"),
                      sidebarLayout(
-                       sidebarPanel("Select Date Range",
+                       sidebarPanel("Select Time Range",
                                     sliderInput(inputId = "year_range",
-                                                label = "Time",
+                                                label = "Number of years",
                                                 min = 0,
                                                 max = 100,
                                                 value = 100
@@ -114,12 +117,12 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
             tabPanel("Number of Fish",
                      icon = icon("fas fa-fish"),
                      sidebarLayout(
-                       sidebarPanel("Select Number of Farms",
+                       sidebarPanel("Abundance vs Fish Catch",
                                     selectInput(inputId = "select_type",
                                                        label = "Select",
                                                        choices = list(
                                                          "Abundance" = "abund",
-                                                         "Amount Caught"= "amt_caught"),
+                                                         "Catch"= "amt_caught"),
                                                 selected = "abund"
                                                 )),
                        mainPanel("Abundance of Fish vs Fish Caught",
@@ -142,6 +145,7 @@ server <- function(input, output) {
   output$biomass_mgmt <- renderPlot(
     ggplot(data = biomass_mgmt_reactive(), aes(x= mgmt_area, y=tot_mil_bm))+
       geom_col(aes(fill= mgmt))+
+      scale_fill_manual(values=c("#004c6d", "#7aa6c2"))+
       labs(x="Management Area (% protected)",
            y="Total Biomass of Fish (million kg)",
            fill="Management Practice")
@@ -195,7 +199,7 @@ server <- function(input, output) {
       geom_line(aes(color = frmsz_class))+
       facet_wrap(~mgmt) +
       scale_color_manual(values=c("#003f5c", "#bc5090", "#ffa600"))+
-      labs(color = "Farm Size", x = "time (years)", y = "Number of Fish")+
+      labs(color = "Farm Size", x = "Time (years)", y = "Number of Fish")+
       scale_x_continuous(breaks = seq(0, 100, by=25), labels = seq(0, 100, by=25)) +
       theme_minimal()
   )
