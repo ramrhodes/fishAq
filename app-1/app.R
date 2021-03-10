@@ -168,6 +168,10 @@ server <- function(input, output) {
     ggplot(data = catch_mgmt_reactive(), aes(x = mgmt_area, y = amt_10k_caught)) +
       geom_col(aes(fill = mgmt))+
       scale_fill_manual(values="#004c6d")+
+      scale_y_continuous(
+        breaks = seq(0, 150, by=50),
+        labels = seq(0, 150, by=50),
+        limits = c(0,180))+
       labs(x="Management Area",
            y="Number of Fish Caught (10,000s)",
            fill="Managment Practice")
@@ -176,32 +180,37 @@ server <- function(input, output) {
   year_reactive <- reactive({
 
     app_data_biomass%>%
-      filter(year < input$year_range)
+      filter(year < input$year_range) %>%
+      mutate(tot_bm_mil = tot_bm/1e+06)
 
   })
 
   output$biomass_plot <- renderPlot(
-    ggplot(data = year_reactive(), aes(x = year, y = tot_bm)) +
+    ggplot(data = year_reactive(), aes(x = year, y = tot_bm_mil)) +
       geom_line(aes(color = frmsz_class)) +
       facet_wrap(~mgmt, scales = "free") +
-      labs(x = "Time (years)", y = "Total Biomass", color = "Farm Size") +
+      labs(x = "Time (years)", y = "Total Biomass (million kg)", color = "Farm Size") +
       scale_color_manual(values=c("#003f5c", "#bc5090", "#ffa600"))+
       scale_x_continuous(breaks = seq(0, 100, by=25), labels = seq(0, 100, by=25)) +
+      scale_y_continuous(breaks = seq(0, 3.5, by=.50),
+                         labels = seq(0, 3.5, by=.50),
+                         limits = c(0,3.5))+
       theme_minimal()
   )
 
   type_reactive <- reactive({
 
     app_data_comb %>%
-      filter(type %in% input$select_type)
+      filter(type %in% input$select_type) %>%
+      mutate(value_10k=value/1e+04)
   })
 
   output$type <- renderPlot(
-    ggplot(data = type_reactive(), aes(x = year, y = value)) +
+    ggplot(data = type_reactive(), aes(x = year, y = value_10k)) +
       geom_line(aes(color = frmsz_class))+
       facet_wrap(~mgmt) +
       scale_color_manual(values=c("#003f5c", "#bc5090", "#ffa600"))+
-      labs(color = "Farm Size", x = "Time (years)", y = "Number of Fish")+
+      labs(color = "Farm Size", x = "Time (years)", y = "Number of Fish (10,000s)")+
       scale_x_continuous(breaks = seq(0, 100, by=25), labels = seq(0, 100, by=25)) +
       theme_minimal()
   )
