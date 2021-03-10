@@ -48,6 +48,11 @@ app_data_comb <- merge(app_data_abund, app_data_amt_caught, by=c("year", "mgmt",
                values_to = "value")
 
 
+## management and amount caught
+app_data_mgmt_amt <- app_data %>%
+  group_by(mgmt) %>%
+  count(mgmt_area, mgmt, wt = amt_caught) %>%
+  rename(amt_caught = n)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(theme = shinytheme("cosmo"),
@@ -78,24 +83,24 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                         sidebarPanel("Select Managment Area",
                                      checkboxGroupInput("check_mgmt_size",
                                                         label = "Management Area",
-                                                        choices = unique(
-                                                          app_data$mgmt_area
+                                                        choices = list(0.1, 0.2, 0.3, 0.4, 0.5, 0.6
                                                         ),
                                                         selected = c(0.1,0.2))),
                         mainPanel("Projected Fish Biomass in Management Area",
                                   plotOutput("biomass_mgmt")
                                   ))),
 
-             tabPanel("Fishery Catch and Managment Area",
+             tabPanel("Fishery Catch and Management Area",
                       icon = icon("fas fa-water"),
                       sidebarLayout(
-                        sidebarPanel("Select Managment Area",
+                        sidebarPanel("Select Management Type",
                                     radioButtons("select_size",
                                                 inputId = "mgmt_area",
-                                                label = "Managment Practice",
+                                                label = "Management Practice",
                                                 choices =unique(
                                                   app_data$mgmt
-                                                    ))),
+                                                    )
+                                                )),
                         mainPanel("Projected Number of Fish Caught with Different Management Conditions",
                                   plotOutput("catch_mgmt")
                                   ))),
@@ -153,22 +158,19 @@ server <- function(input, output) {
 
   catch_mgmt_reactive <- reactive({
 
-    app_data %>%
+    app_data_mgmt_amt %>%
       filter(mgmt %in% input$mgmt_area) %>%
       mutate(amt_10k_caught= amt_caught/10000)
 
   })
 
   output$catch_mgmt <- renderPlot(
-    ggplot(data = catch_mgmt_reactive(), aes(mgmt_area, amt_10k_caught)) +
-      geom_point(aes(color = mgmt))+
-      scale_y_continuous(
-        breaks = seq(0, 13, by=1),
-        labels = seq(0, 13, by=1),
-        limits = c(0,13))+
+    ggplot(data = catch_mgmt_reactive(), aes(x = mgmt_area, y = amt_10k_caught)) +
+      geom_col(aes(fill = mgmt))+
+      scale_fill_manual(values="#004c6d")+
       labs(x="Management Area",
            y="Number of Fish Caught (10,000s)",
-           color="Managment Practice")
+           fill="Managment Practice")
   )
 
   year_reactive <- reactive({
