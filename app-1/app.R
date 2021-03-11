@@ -9,7 +9,7 @@ library(DT)
 
 # Global data for app
 ## full data set
-app_data <- read.csv(here("data","appDatCEOA.csv")) %>%
+app_data <- read.csv(here("data","appDatCEOA_diffs.csv")) %>%
   clean_names() %>%
   mutate(frmsz_class = case_when(frm_sz == 2 ~ "small",
                               frm_sz == 5 ~ "medium",
@@ -18,16 +18,7 @@ app_data <- read.csv(here("data","appDatCEOA.csv")) %>%
   mutate(mgmt_area = mgmt_area*100) %>%
   mutate(mgmt = case_when(mgmt == "OpenAccess" ~ "Open Access",
                           mgmt == "ConstantEffort_MSY" ~ "Constant Effort"))
-# Data set with differences
-app_data_diff <- read.csv(here("data","appDatCEOA_diff.csv")) %>%
-clean_names() %>%
-  mutate(frmsz_class = case_when(frm_sz == 2 ~ "small",
-                                 frm_sz == 5 ~ "medium",
-                                 frm_sz == 10 ~ "large")) %>%
-  mutate(num_farms = ((mgmt_area*100)/frm_sz)) %>%
-  mutate(mgmt_area = mgmt_area*100) %>%
-  mutate(mgmt = case_when(mgmt == "OpenAccess" ~ "Open Access",
-                          mgmt == "ConstantEffort_MSY" ~ "Constant Effort"))
+
 ## cleaned_up
 app_clean <-  app_data %>%
   rename(farm_size = frm_sz,
@@ -39,13 +30,14 @@ app_clean <-  app_data %>%
          catch_biomass = bm_caught,
          mgmt_type = mgmt,
          farm_size_class = frmsz_class,
-         density_dep_move = dmm
+         density_dep_move = dmm,
+         difference_biomass = bm_diff,
+         difference_catch_biomass = c_bm_diff
   ) %>%
-  select(year, mgmt_type, mgmt_area, farm_size, num_farms, farm_size_class, abundance, total_biomass, catch_amount, catch_biomass) %>%
+  select(year, mgmt_type, mgmt_area, farm_size, num_farms, farm_size_class, abundance, total_biomass, catch_amount, catch_biomass, difference_biomass, difference_catch_biomass) %>%
   relocate(num_farms, .after = farm_size) %>%
   relocate(farm_size_class, .after = num_farms) %>%
   relocate(mgmt_type, .after = year)
-
 
 
 ## biomass by farm size
@@ -81,6 +73,7 @@ app_data_comb <- merge(app_data_abund, app_data_amt_caught, by=c("year", "mgmt",
 
 ## management and amount caught
 app_data_mgmt_amt <- app_data %>%
+  filter(year > 49) %>%
   group_by(mgmt) %>%
   count(mgmt_area, mgmt, wt = amt_caught) %>%
   rename(amt_caught = n)
@@ -129,7 +122,9 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                                         label = "Management Area (% Protected)",
                                                         choices = list(10, 20, 30, 40, 50, 60
                                                         ),
-                                                        selected = c(10,20))),
+                                                        selected = c(10,20)),
+                                     h5("Compare the total biomass of fish (million kg) for each management area. The management area refers to the number of patches protected by farms or marine protected areas.")
+                                     ),
                         mainPanel("Projected Fish Biomass in Management Area",
                                   plotOutput("biomass_mgmt")
                                   ))),
@@ -144,7 +139,8 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                                 choices =unique(
                                                   app_data$mgmt
                                                     )
-                                                )),
+                                                ),
+                                    h5("Compare how the number of fish caught changes depending on the management type. Open access management refers to farms located in fisheries with very little oversight/enforcement and constant effort refers to farms located in fisheries with limits/enforcement.")),
                         mainPanel("Projected Number of Fish Caught with Different Management Conditions",
                                   plotOutput("catch_mgmt")
                                   ))),
@@ -157,8 +153,9 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                                 label = "Number of years",
                                                 min = 1,
                                                 max = 100,
-                                                value = 100
-                                    )),
+                                                value = 50
+                                    ),
+                                    h5("See how fish biomass (million kg) changes in different farm sizes over time. Constant effort (shown on the left) refers to fisheries with limits/enforcement. Open access (shown on the right) refers to fisheries with very little oversight/enforcement. The farm size refers to the number of patches per farm (large farms = 10 patches, medium = 5 patches, small = 2 patches).")),
                        mainPanel("Fish Biomass Over Time",
                                  plotOutput("biomass_plot")
                                  ))),
@@ -174,7 +171,7 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                                          "Catch"= "amt_caught"),
                                                 selected = "abund"
                                                 ),
-                                    h5("Compare the impact of an protected area (MPA or farm) on the abundance of wild fish populations (number of fish) or the impact on fishery catches (number of fish caught) over time. Year 0 is the year the protected area was put into place.")),
+                                    h5("Compare the impact of farms on the abundance of wild fish populations (number of fish) vsersus the impact on fishery catches (number of fish caught) over time. The farm size refers to the number of patches per farm (large farms = 10 patches, medium = 5 patches, small = 2 patches)")),
                        mainPanel("Abundance of Fish vs Fish Caught",
                                  plotOutput("type")
                        )))
@@ -189,6 +186,7 @@ server <- function(input, output) {
 
     app_data %>%
       filter(mgmt_area %in% input$check_mgmt_size) %>%
+      filter(year > 49) %>%
       mutate(tot_mil_bm = tot_bm/1e+06)
   })
 
@@ -201,9 +199,9 @@ server <- function(input, output) {
         labels = seq(0, 60, by=10),
         limits = c(0,70))+
       scale_y_continuous(
-        breaks = seq(0, 350, by=50),
-        labels = seq(0, 350, by=50),
-        limits = c(0,350))+
+        breaks = seq(0, 500, by=50),
+        labels = seq(0, 500, by=50),
+        limits = c(0,500))+
       labs(x="Management Area (% protected)",
            y="Total Biomass of Fish (million kg)",
            fill="Management Practice")
@@ -221,10 +219,6 @@ server <- function(input, output) {
     ggplot(data = catch_mgmt_reactive(), aes(x = mgmt_area, y = amt_10k_caught)) +
       geom_col(aes(fill = mgmt))+
       scale_fill_manual(values="#004c6d")+
-      scale_y_continuous(
-        breaks = seq(0, 150, by=50),
-        labels = seq(0, 150, by=50),
-        limits = c(0,180))+
       labs(x="Management Area (% protected)",
            y="Number of Fish Caught (10,000s)",
            fill="Managment Practice")
@@ -241,13 +235,13 @@ server <- function(input, output) {
   output$biomass_plot <- renderPlot(
     ggplot(data = year_reactive(), aes(x = year, y = tot_bm_mil)) +
       geom_line(aes(color = frmsz_class)) +
-      facet_wrap(~mgmt, scales = "free") +
+      facet_wrap(~mgmt) +
       labs(x = "Time (years)", y = "Total Biomass (million kg)", color = "Farm Size") +
       scale_color_manual(values=c("#003f5c", "#bc5090", "#ffa600"))+
       scale_x_continuous(breaks = seq(0, 100, by=25), labels = seq(0, 100, by=25)) +
-      scale_y_continuous(breaks = seq(0, 3.5, by=.50),
-                         labels = seq(0, 3.5, by=.50),
-                         limits = c(0,3.5))+
+      scale_y_continuous(breaks = seq(0, 4, by=1),
+                         labels = seq(0, 4, by=1),
+                         limits = c(0,4))+
       theme_minimal()
   )
 
@@ -261,7 +255,7 @@ server <- function(input, output) {
   output$type <- renderPlot(
     ggplot(data = type_reactive(), aes(x = year, y = value_10k)) +
       geom_line(aes(color = frmsz_class))+
-      facet_wrap(~mgmt) +
+      facet_wrap(~mgmt, scales = "free") +
       scale_color_manual(values=c("#003f5c", "#bc5090", "#ffa600"))+
       labs(color = "Farm Size", x = "Time (years)", y = "Number of Fish (10,000s)")+
       scale_x_continuous(breaks = seq(0, 100, by=25), labels = seq(0, 100, by=25)) +
