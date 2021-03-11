@@ -18,7 +18,16 @@ app_data <- read.csv(here("data","appDatCEOA.csv")) %>%
   mutate(mgmt_area = mgmt_area*100) %>%
   mutate(mgmt = case_when(mgmt == "OpenAccess" ~ "Open Access",
                           mgmt == "ConstantEffort_MSY" ~ "Constant Effort"))
-
+# Data set with differences
+app_data_diff <- read.csv(here("data","appDatCEOA_diff.csv")) %>%
+clean_names() %>%
+  mutate(frmsz_class = case_when(frm_sz == 2 ~ "small",
+                                 frm_sz == 5 ~ "medium",
+                                 frm_sz == 10 ~ "large")) %>%
+  mutate(num_farms = ((mgmt_area*100)/frm_sz)) %>%
+  mutate(mgmt_area = mgmt_area*100) %>%
+  mutate(mgmt = case_when(mgmt == "OpenAccess" ~ "Open Access",
+                          mgmt == "ConstantEffort_MSY" ~ "Constant Effort"))
 ## cleaned_up
 app_clean <-  app_data %>%
   rename(farm_size = frm_sz,
