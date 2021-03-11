@@ -5,6 +5,7 @@ library(shiny)
 library(shinythemes)
 library(janitor)
 library(here)
+library(DT)
 
 # Global data for app
 ## full data set
@@ -14,8 +15,29 @@ app_data <- read.csv(here("data","appDatCEOA.csv")) %>%
                               frm_sz == 5 ~ "medium",
                               frm_sz == 10 ~ "large")) %>%
   mutate(num_farms = ((mgmt_area*100)/frm_sz)) %>%
+  mutate(mgmt_area = mgmt_area*100) %>%
   mutate(mgmt = case_when(mgmt == "OpenAccess" ~ "Open Access",
                           mgmt == "ConstantEffort_MSY" ~ "Constant Effort"))
+
+## cleaned_up
+app_clean <-  app_data %>%
+  rename(farm_size = frm_sz,
+         attraction = attr,
+         patch_carrying_capacity = p_k,
+         abundance = abund,
+         total_biomass = tot_bm,
+         catch_amount = amt_caught,
+         catch_biomass = bm_caught,
+         mgmt_type = mgmt,
+         farm_size_class = frmsz_class,
+         density_dep_move = dmm
+  ) %>%
+  select(year, mgmt_type, mgmt_area, farm_size, num_farms, farm_size_class, abundance, total_biomass, catch_amount, catch_biomass) %>%
+  relocate(num_farms, .after = farm_size) %>%
+  relocate(farm_size_class, .after = num_farms) %>%
+  relocate(mgmt_type, .after = year)
+
+
 
 ## biomass by farm size
 app_data_biomass <- app_data %>%
@@ -57,6 +79,12 @@ app_data_mgmt_amt <- app_data %>%
 # Define UI for application that draws a histogram
 ui <- fluidPage(theme = shinytheme("cosmo"),
 
+                #CSS Styles
+                tags$style(HTML(
+                  paste0(".shiny-input-container {background-color: #f5f5f5; border: 1px solid #e3e3e3;",
+                         "padding-left: 10px; padding-right: 10px; border-radius: 3px;}")
+                )),
+
   navbarPage("Bioeconomic Model: Fish & Protected Space",
              tabPanel("About",
                       icon = icon("fas fa-book-open"),
@@ -77,20 +105,27 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                       )
                       ),
 
+             tabPanel("Data",
+                      icon = icon("fas fa-table"),
+                      h2("Model Output"),
+                      DT::dataTableOutput("mytable")
+             ),
+
+
              tabPanel("Biomass change with Management Area",
                       icon = icon("far fa-chart-bar"),
                       sidebarLayout(
                         sidebarPanel("Select Managment Area",
                                      checkboxGroupInput("check_mgmt_size",
-                                                        label = "Management Area",
-                                                        choices = list(0.1, 0.2, 0.3, 0.4, 0.5, 0.6
+                                                        label = "Management Area (% Protected)",
+                                                        choices = list(10, 20, 30, 40, 50, 60
                                                         ),
-                                                        selected = c(0.1,0.2))),
+                                                        selected = c(10,20))),
                         mainPanel("Projected Fish Biomass in Management Area",
                                   plotOutput("biomass_mgmt")
                                   ))),
 
-             tabPanel("Fishery Catch and Management Area",
+             tabPanel("Fishery Catch by Management Type",
                       icon = icon("fas fa-water"),
                       sidebarLayout(
                         sidebarPanel("Select Management Type",
@@ -111,7 +146,7 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                        sidebarPanel("Select Time Range",
                                     sliderInput(inputId = "year_range",
                                                 label = "Number of years",
-                                                min = 0,
+                                                min = 1,
                                                 max = 100,
                                                 value = 100
                                     )),
@@ -129,12 +164,13 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                                          "Abundance" = "abund",
                                                          "Catch"= "amt_caught"),
                                                 selected = "abund"
-                                                )),
+                                                ),
+                                    h5("Compare the impact of an protected area (MPA or farm) on the abundance of wild fish populations (number of fish) or the impact on fishery catches (number of fish caught) over time. Year 0 is the year the protected area was put into place.")),
                        mainPanel("Abundance of Fish vs Fish Caught",
                                  plotOutput("type")
-                       ))))
+                       )))
 
-)
+))
 
 
 # Define server logic required to draw a histogram
@@ -151,6 +187,14 @@ server <- function(input, output) {
     ggplot(data = biomass_mgmt_reactive(), aes(x= mgmt_area, y=tot_mil_bm))+
       geom_col(aes(fill= mgmt))+
       scale_fill_manual(values=c("#004c6d", "#7aa6c2"))+
+      scale_x_continuous(
+        breaks = seq(0, 60, by=10),
+        labels = seq(0, 60, by=10),
+        limits = c(0,70))+
+      scale_y_continuous(
+        breaks = seq(0, 350, by=50),
+        labels = seq(0, 350, by=50),
+        limits = c(0,350))+
       labs(x="Management Area (% protected)",
            y="Total Biomass of Fish (million kg)",
            fill="Management Practice")
@@ -172,7 +216,7 @@ server <- function(input, output) {
         breaks = seq(0, 150, by=50),
         labels = seq(0, 150, by=50),
         limits = c(0,180))+
-      labs(x="Management Area",
+      labs(x="Management Area (% protected)",
            y="Number of Fish Caught (10,000s)",
            fill="Managment Practice")
   )
@@ -214,6 +258,10 @@ server <- function(input, output) {
       scale_x_continuous(breaks = seq(0, 100, by=25), labels = seq(0, 100, by=25)) +
       theme_minimal()
   )
+
+  output$mytable = DT::renderDataTable({
+    app_clean
+  })
 
 }
 
