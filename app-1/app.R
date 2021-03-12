@@ -123,9 +123,9 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                                         choices = list(10, 20, 30, 40, 50, 60
                                                         ),
                                                         selected = c(10,20)),
-                                     h5("Compare the total biomass of fish (million kg) for each management area. The management area refers to the number of patches protected by farms or marine protected areas.")
+                                     h5("Compare the total biomass of fish (million kg) for each management area. The management area refers to the number of patches protected by farms or marine protected areas. This plot is showing the biomass of fish once the model reaches equilibrium.")
                                      ),
-                        mainPanel("Projected Fish Biomass in Management Area",
+                        mainPanel("Projected Fish Biomass in Management Area at Equilibrium",
                                   plotOutput("biomass_mgmt")
                                   ))),
 
@@ -140,8 +140,8 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                                   app_data$mgmt
                                                     )
                                                 ),
-                                    h5("Compare how the number of fish caught changes depending on the management type. Open access management refers to farms located in fisheries with very little oversight/enforcement and constant effort refers to farms located in fisheries with limits/enforcement.")),
-                        mainPanel("Projected Number of Fish Caught with Different Management Conditions",
+                                    h5("Compare how the number of fish caught changes depending on the management type. Open access management refers to farms located in fisheries with very little oversight/enforcement and constant effort refers to farms located in fisheries with limits/enforcement. NUmber of fish caught are projected amounts to occur by the model once equilibrium occurs.")),
+                        mainPanel("Projected Number of Fish Caught with Different Management Conditions at Equilibrium",
                                   plotOutput("catch_mgmt")
                                   ))),
 
@@ -186,22 +186,22 @@ server <- function(input, output) {
 
     app_data %>%
       filter(mgmt_area %in% input$check_mgmt_size) %>%
-      filter(year > 49) %>%
+      filter(year== max(year)) %>%
       mutate(tot_mil_bm = tot_bm/1e+06)
   })
 
   output$biomass_mgmt <- renderPlot(
     ggplot(data = biomass_mgmt_reactive(), aes(x= mgmt_area, y=tot_mil_bm))+
-      geom_col(aes(fill= mgmt))+
+      geom_col(aes(fill= mgmt), position = "dodge")+
       scale_fill_manual(values=c("#004c6d", "#7aa6c2"))+
       scale_x_continuous(
         breaks = seq(0, 60, by=10),
         labels = seq(0, 60, by=10),
         limits = c(0,70))+
       scale_y_continuous(
-        breaks = seq(0, 500, by=50),
-        labels = seq(0, 500, by=50),
-        limits = c(0,500))+
+        breaks = seq(0, .9, by=.1),
+        labels = seq(0, .9, by=.1),
+        limits = c(0,.85))+
       labs(x="Management Area (% protected)",
            y="Total Biomass of Fish (million kg)",
            fill="Management Practice")
@@ -209,19 +209,29 @@ server <- function(input, output) {
 
   catch_mgmt_reactive <- reactive({
 
-    app_data_mgmt_amt %>%
+    app_data %>%
       filter(mgmt %in% input$mgmt_area) %>%
+      filter(year == max(year)) %>%
+      group_by(mgmt) %>%
       mutate(amt_10k_caught= amt_caught/10000)
 
   })
 
   output$catch_mgmt <- renderPlot(
     ggplot(data = catch_mgmt_reactive(), aes(x = mgmt_area, y = amt_10k_caught)) +
-      geom_col(aes(fill = mgmt))+
+      geom_col(aes(fill = mgmt, position = "dodge"))+
       scale_fill_manual(values="#004c6d")+
       labs(x="Management Area (% protected)",
            y="Number of Fish Caught (10,000s)",
-           fill="Managment Practice")
+           fill="Managment Practice")+
+      scale_x_continuous(
+        breaks = seq(0, 60, by=10),
+        labels = seq(0, 60, by=10),
+        limits = c(0,70))+
+      scale_y_continuous(
+        breaks = seq(0, 1, by=.1),
+        labels = seq(0, 1, by=.1),
+        limits = c(0,1))
   )
 
   year_reactive <- reactive({
