@@ -37,13 +37,15 @@ app_clean <-  app_data %>%
   select(year, mgmt_type, mgmt_area, farm_size, num_farms, farm_size_class, abundance, total_biomass, catch_amount, catch_biomass, difference_biomass, difference_catch_biomass) %>%
   relocate(num_farms, .after = farm_size) %>%
   relocate(farm_size_class, .after = num_farms) %>%
-  relocate(mgmt_type, .after = year)
+  relocate(mgmt_type, .after = year) %>%
+  filter(year > 49) %>%
+  mutate(year = year - 50)
 
 
 ## biomass by farm size
 app_data_biomass <- app_data %>%
   group_by(year) %>%
-  count(frmsz_class, mgmt, wt = tot_bm) %>%
+  count(frmsz_class, mgmt, mgmt_area, wt = tot_bm) %>%
   filter(year > 49) %>%
   mutate(year = year - 50) %>%
   rename(tot_bm = n)
@@ -51,7 +53,7 @@ app_data_biomass <- app_data %>%
 ## abundance by farm size
 app_data_abund <- app_data %>%
   group_by(year) %>%
-  count(frmsz_class, mgmt, wt = abund) %>%
+  count(frmsz_class, mgmt, mgmt_area, wt = abund) %>%
   filter(year > 49) %>%
   mutate(year = year - 50) %>%
   rename(abund = n)
@@ -59,13 +61,13 @@ app_data_abund <- app_data %>%
 ## amount caught by farm size
 app_data_amt_caught<- app_data %>%
   group_by(year) %>%
-  count(frmsz_class, mgmt, wt = amt_caught) %>%
+  count(frmsz_class, mgmt, mgmt_area, wt = amt_caught) %>%
   filter(year > 49) %>%
   mutate(year = year - 50) %>%
   rename(amt_caught = n)
 
 ## abundance and amount caught df combined
-app_data_comb <- merge(app_data_abund, app_data_amt_caught, by=c("year", "mgmt", "frmsz_class")) %>%
+app_data_comb <- merge(app_data_abund, app_data_amt_caught, by=c("year", "mgmt", "mgmt_area", "frmsz_class")) %>%
   pivot_longer(cols = c("amt_caught", "abund"),
                names_to = "type",
                values_to = "value")
@@ -117,14 +119,17 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
              tabPanel("Biomass change with Management Area",
                       icon = icon("far fa-chart-bar"),
                       sidebarLayout(
-                        sidebarPanel("Select Managment Area",
+                        sidebarPanel(h4("Compare the total biomass of fish for each management area"),
                                      checkboxGroupInput("check_mgmt_size",
-                                                        label = "Management Area (% Protected)",
+                                                        label = "Select Management Areas (% Protected)",
                                                         choices = list(10, 20, 30, 40, 50, 60
                                                         ),
                                                         selected = c(10,20)),
-                                     h5("Compare the total biomass of fish (million kg) for each management area. The management area refers to the number of patches protected by farms or marine protected areas. This plot is showing the biomass of fish once the model reaches equilibrium.")
-                                     ),
+                                     h5("This plot shows the biomass of fish (million kg) after 100 years once the model reaches equilibrium."),
+                                     h4("Management Practice:"),
+                                     h5("Constant effort (shown on the left) refers to fisheries with limits/enforcement. Open access (shown on the right) refers to fisheries with very little oversight/enforcement"),
+                                     h4("Management Area:"),
+                                     h5("The management area refers to the the number of patches protected as either farms or marine protected areas.")),
                         mainPanel("Projected Fish Biomass in Management Area at Equilibrium",
                                   plotOutput("biomass_mgmt")
                                   ))),
@@ -148,22 +153,32 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
             tabPanel("Fish Biomass Over Time",
                      icon = icon("fas fa-hourglass-half"),
                      sidebarLayout(
-                       sidebarPanel("Select Time Range",
+                       sidebarPanel(
+                                    h4("See how fish biomass changes for different management area sizes over time:"),
                                     sliderInput(inputId = "year_range",
                                                 label = "Number of years",
                                                 min = 1,
                                                 max = 100,
                                                 value = 50
                                     ),
-                                    h5("See how fish biomass (million kg) changes in different farm sizes over time. Constant effort (shown on the left) refers to fisheries with limits/enforcement. Open access (shown on the right) refers to fisheries with very little oversight/enforcement. The farm size refers to the number of patches per farm (large farms = 10 patches, medium = 5 patches, small = 2 patches).")),
+                                    radioButtons("Select Management Size",
+                                                 inputId = "mgmt_size",
+                                                 label = "Management Size (% protected)",
+                                                 choices =list("10%" = 10, "20%" = 20, "30%" = 30, "40%" = 40, "50%" = 50, "60%" = 60)
+                                    ),
+                                    h4("Management Area:"),
+                                    h5("The management area refers to the the number of patches protected as either farms or marine protected areas."),
+                                    h4("Farm Size:"),
+                                    h5("The farm size refers to the number of patches per farm (large farms = 10 patches, medium = 5 patches, small = 2 patches)")
+                                    ),
                        mainPanel("Fish Biomass Over Time",
-                                 plotOutput("biomass_plot")
+                                 plotOutput("biomass_plot"),
                                  ))),
 
             tabPanel("Number of Fish",
                      icon = icon("fas fa-fish"),
                      sidebarLayout(
-                       sidebarPanel("Abundance vs Fish Catch",
+                       sidebarPanel("Compare the impact of farms on the abundance of wild fish populations (number of fish) or the impact on fishery catches (number of fish caught) over time",
                                     selectInput(inputId = "select_type",
                                                        label = "Select",
                                                        choices = list(
@@ -171,7 +186,15 @@ ui <- fluidPage(theme = shinytheme("cosmo"),
                                                          "Catch"= "amt_caught"),
                                                 selected = "abund"
                                                 ),
-                                    h5("Compare the impact of farms on the abundance of wild fish populations (number of fish) vsersus the impact on fishery catches (number of fish caught) over time. The farm size refers to the number of patches per farm (large farms = 10 patches, medium = 5 patches, small = 2 patches)")),
+                                    radioButtons("Select Management Size",
+                                                 inputId = "mgmt_per_area",
+                                                 label = "Management Size (% protected)",
+                                                 choices =list("10%" = 10, "20%" = 20, "30%" = 30, "40%" = 40, "50%" = 50, "60%" = 60)
+                                    ),
+                                    h4("Management Area:"),
+                                    h5("The management area refers to the the number of patches protected as either farms or marine protected areas."),
+                                    h4("Farm Size:"),
+                                    h5("The farm size refers to the number of patches per farm (large farms = 10 patches, medium = 5 patches, small = 2 patches).")),
                        mainPanel("Abundance of Fish vs Fish Caught",
                                  plotOutput("type")
                        )))
@@ -238,6 +261,7 @@ server <- function(input, output) {
 
     app_data_biomass%>%
       filter(year < input$year_range) %>%
+      filter(mgmt_area %in% input$mgmt_size) %>%
       mutate(tot_bm_mil = tot_bm/1e+06)
 
   })
@@ -249,9 +273,9 @@ server <- function(input, output) {
       labs(x = "Time (years)", y = "Total Biomass (million kg)", color = "Farm Size") +
       scale_color_manual(values=c("#003f5c", "#bc5090", "#ffa600"))+
       scale_x_continuous(breaks = seq(0, 100, by=25), labels = seq(0, 100, by=25)) +
-      scale_y_continuous(breaks = seq(0, 4, by=1),
-                         labels = seq(0, 4, by=1),
-                         limits = c(0,4))+
+      scale_y_continuous(breaks = seq(0, 1, by=0.25),
+                         labels = seq(0, 1, by=0.25),
+                         limits = c(0,1))+
       theme_minimal()
   )
 
@@ -259,16 +283,20 @@ server <- function(input, output) {
 
     app_data_comb %>%
       filter(type %in% input$select_type) %>%
-      mutate(value_10k=value/1e+04)
+      filter(mgmt_area %in% input$mgmt_per_area) %>%
+      mutate(value_10k = value/1e+04)
   })
 
   output$type <- renderPlot(
     ggplot(data = type_reactive(), aes(x = year, y = value_10k)) +
       geom_line(aes(color = frmsz_class))+
-      facet_wrap(~mgmt, scales = "free") +
+      facet_wrap(~mgmt) +
       scale_color_manual(values=c("#003f5c", "#bc5090", "#ffa600"))+
       labs(color = "Farm Size", x = "Time (years)", y = "Number of Fish (10,000s)")+
       scale_x_continuous(breaks = seq(0, 100, by=25), labels = seq(0, 100, by=25)) +
+      scale_y_continuous(breaks = seq(0, 15, by=5),
+                         labels = seq(0, 15, by=5),
+                         limits = c(0,15))+
       theme_minimal()
   )
 
